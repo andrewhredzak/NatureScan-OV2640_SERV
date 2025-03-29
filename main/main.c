@@ -12,7 +12,7 @@
 
 //NEO-6
 #include "driver/uart.h"
-#include "NEO6.h"
+
 
 
 // Camera
@@ -323,13 +323,6 @@ void app_main(void)
     //     ESP_LOGE(TAG, "Failed to deinitialize SDMMC host");
     // }
 
-    /*
-     const uart_port_t uart_num = UART_NUM;
-    uart_init(uart_num);
-
-    // Launch GPS task
-    xTaskCreate(gps_task,"gps_task",GPS_TASK_STACK_SIZE,(void*)UART_NUM,GPS_TASK_PRIORITY,NULL);
-    */
     
     ESP_LOGI(TAG, "success!!!");
 
