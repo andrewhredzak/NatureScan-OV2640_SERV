@@ -98,6 +98,8 @@ int example_espnow_data_parse(uint8_t *data, uint16_t data_len, uint8_t *state, 
 void example_espnow_data_prepare(example_espnow_send_param_t *send_param);
 static void example_espnow_task(void *pvParameter);
 esp_err_t example_espnow_init(void);
+void example_espnow_set_log_file(const char *filepath);
+
 
 
 

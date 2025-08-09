@@ -35,6 +35,7 @@
 #include "driver/sdmmc_defs.h"
 #include "sdmmc_cmd.h"
 #include "esp_vfs_fat.h"
+#include "esp_timer.h"
 
 
 // NEO-6 GPS defs
@@ -293,18 +294,54 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
-    // Initialize WiFi and ESPNOW
-    example_wifi_init();
-    example_espnow_init();
-
-
-
     // Initialize SD Card
     ret = init_sdcard();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize SD Card. Halting.");
         return; // Halt if SD card fails
     }
+
+    
+
+    // Create received data log file "receiveddata_HHMM.txt" at boot
+    {
+        time_t now = time(NULL);
+        struct tm tm_info = {0};
+        char hhmm[8] = "0000";
+        if (now > 1600000000) {
+            localtime_r(&now, &tm_info);
+            strftime(hhmm, sizeof(hhmm), "%H%M", &tm_info);
+        } else {
+            // fallback to uptime minutes:seconds if RTC not set
+            int64_t us = esp_timer_get_time();
+            uint32_t sec = (uint32_t)(us / 1000000);
+            snprintf(hhmm, sizeof hhmm, "%02u%02u", (unsigned)((sec / 3600) % 24), (unsigned)((sec / 60) % 60));
+
+        }
+
+        char log_path[96];
+        snprintf(log_path, sizeof log_path, "%s/receiveddata_%s.txt", mount_point, hhmm);
+
+        FILE *f = fopen(log_path, "w");
+        if (f) {
+            fprintf(f, "Boot log started\n");
+            fclose(f);
+            ESP_LOGI(TAG, "Created receive log: %s", log_path);
+        } else {
+            ESP_LOGE(TAG, "Failed to create receive log file");
+        }
+
+        // Tell unicast where to append samples
+        example_espnow_set_log_file(log_path);
+    }
+
+    // Initialize WiFi and ESPNOW
+    example_wifi_init();
+    example_espnow_init();
+
+
+
+    
 
 
     //vTaskDelay(pdMS_TO_TICKS(3000));

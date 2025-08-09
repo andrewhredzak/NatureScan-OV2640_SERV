@@ -18,7 +18,11 @@
 #include "esp_wifi.h"
 #include "unicast.h"
 #include <ctype.h>
-#include <stdio.h>         
+#include <stdio.h>    
+#include <ctype.h>
+#include <stdio.h>         // added
+#include "esp_timer.h"     // added
+    
 
 
 const char *TAG = "unicast receive server";
@@ -26,6 +30,40 @@ uint8_t s_example_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0x
 uint16_t s_example_espnow_seq[EXAMPLE_ESPNOW_DATA_MAX] = { 0, 0 };
 QueueHandle_t s_example_espnow_queue;
 
+static char s_log_file_path[128] = {0};  // added
+
+
+
+// added: setter to receive log path from main
+void example_espnow_set_log_file(const char *filepath) {
+    if (!filepath) return;
+    strncpy(s_log_file_path, filepath, sizeof(s_log_file_path) - 1);
+    s_log_file_path[sizeof(s_log_file_path) - 1] = '\0';
+}
+
+// added: timestamp helper (HH:MM:SS; falls back to uptime if RTC not set)
+static void make_time_hhmmss(char *out, size_t n) {
+    time_t now = time(NULL);
+    if (now > 1600000000) { // RTC likely valid
+        struct tm tm_info;
+        localtime_r(&now, &tm_info);
+        strftime(out, n, "%H:%M:%S", &tm_info);
+    } else {
+        int64_t us = esp_timer_get_time();
+        uint32_t sec = (uint32_t)(us / 1000000);
+        uint32_t hh = (sec / 3600) % 24, mm = (sec / 60) % 60, ss = sec % 60;
+        snprintf(out, n, "%02u:%02u:%02u", (unsigned)hh, (unsigned)mm, (unsigned)ss);
+    }
+}
+
+// added: append a line to the log file
+static void append_log_line(const char *line) {
+    if (s_log_file_path[0] == '\0' || !line) return;
+    FILE *f = fopen(s_log_file_path, "a");
+    if (!f) return;
+    fprintf(f, "%s\n", line);
+    fclose(f);
+}
 
 
 static void example_espnow_deinit(example_espnow_send_param_t *send_param);  
@@ -250,6 +288,34 @@ static void example_espnow_task(void *pvParameter)
                 if (recv_cb->data_len > 0 && isprint(recv_cb->data[0])) {
                     ESP_LOGI(TAG, "Received packet (string): %.*s", recv_cb->data_len, (char *)recv_cb->data);
                 }
+
+                /*
+                // added: append timestamped line to SD log
+                if (s_log_file_path[0]) {
+                    char ts[16];
+                    make_time_hhmmss(ts, sizeof ts);
+                    // log ASCII if looks like text; otherwise log hex dump
+                    if (printable) {
+                        // ensure one-line output (truncate embedded newlines if any)
+                        int len = recv_cb->data_len;
+                        const char *buf = (const char *)recv_cb->data;
+                        // create a bounded printable line
+                        int max = len;
+                        while (max > 0 && (buf[max-1] == '\r' || buf[max-1] == '\n')) max--;
+                        char line[16 + 1 + 256 + 1]; // ts + space + payload (up to 256) + null
+                        int copy = max > 256 ? 256 : max;
+                        snprintf(line, sizeof line, "%s %.*s", ts, copy, buf);
+                        append_log_line(line);
+                    } else {
+                        char line_prefix[32];
+                        snprintf(line_prefix, sizeof line_prefix, "%s ", ts);
+                        // write prefix + hex_str
+                        char line[32 + sizeof hex_str];
+                        snprintf(line, sizeof line, "%s%s", line_prefix, hex_str);
+                        append_log_line(line);
+                    }
+                }
+                */
 
 
 
