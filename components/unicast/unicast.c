@@ -101,8 +101,9 @@ static void example_espnow_send_cb(const uint8_t *mac_addr, esp_now_send_status_
     evt.id = EXAMPLE_ESPNOW_SEND_CB;
     memcpy(send_cb->mac_addr, mac_addr, ESP_NOW_ETH_ALEN);
     send_cb->status = status;
-    if (xQueueSend(s_example_espnow_queue, &evt, ESPNOW_MAXDELAY) != pdTRUE) {
-        ESP_LOGW(TAG, "Send send queue fail");
+    // Do NOT block in WiFi/ESPNOW callback; drop if queue is full
+    if (xQueueSend(s_example_espnow_queue, &evt, 0) != pdTRUE) {
+        ESP_LOGW(TAG, "Send-cb queue full, dropping event");
     }
 }
 
@@ -137,8 +138,9 @@ static void example_espnow_recv_cb(const esp_now_recv_info_t *recv_info, const u
     }
     memcpy(recv_cb->data, data, len);
     recv_cb->data_len = len;
-    if (xQueueSend(s_example_espnow_queue, &evt, ESPNOW_MAXDELAY) != pdTRUE) {
-        ESP_LOGW(TAG, "Send receive queue fail");
+    // Do NOT block in WiFi/ESPNOW callback; drop if queue is full
+    if (xQueueSend(s_example_espnow_queue, &evt, 0) != pdTRUE) {
+        ESP_LOGW(TAG, "Recv-cb queue full, dropping packet");
         free(recv_cb->data);
     }
 }
@@ -244,7 +246,7 @@ static void example_espnow_task(void *pvParameter)
                     vTaskDelay(send_param->delay/portTICK_PERIOD_MS);
                 }
 
-                /*
+                
                 wifi_mode_t mode;
                 esp_wifi_get_mode(&mode);
                 const char *mode_str = "UNKNOWN";
@@ -260,7 +262,7 @@ static void example_espnow_task(void *pvParameter)
                 
 
                 ESP_LOGI("ADAM-SERVER", "WiFi mode: %s, data link to "MACSTR"", mode_str, MAC2STR(send_cb->mac_addr));
-                */
+                
 
                 memcpy(send_param->dest_mac, send_cb->mac_addr, ESP_NOW_ETH_ALEN);
                 example_espnow_data_prepare(send_param);
@@ -289,7 +291,13 @@ static void example_espnow_task(void *pvParameter)
                     ESP_LOGI(TAG, "Received packet (string): %.*s", recv_cb->data_len, (char *)recv_cb->data);
                 }
 
-                /*
+                // Optional: Print if data is a printable string
+                bool printable = (recv_cb->data_len > 0 && isprint(recv_cb->data[0]));
+                if (printable) {
+                    ESP_LOGI(TAG, "Received packet (string): %.*s", recv_cb->data_len, (char *)recv_cb->data);
+                }
+
+                
                 // added: append timestamped line to SD log
                 if (s_log_file_path[0]) {
                     char ts[16];
@@ -315,7 +323,7 @@ static void example_espnow_task(void *pvParameter)
                         append_log_line(line);
                     }
                 }
-                */
+                
 
 
 
@@ -462,7 +470,8 @@ esp_err_t example_espnow_init(void)
     send_param->payload_len = sizeof(my_message) - 1; // exclude null terminator
     example_espnow_data_prepare(send_param);
 
-    xTaskCreate(example_espnow_task, "example_espnow_task", 2048, send_param, 4, NULL);
+    // Increase stack size to accommodate logging and temporary buffers
+    xTaskCreate(example_espnow_task, "example_espnow_task", 4096, send_param, 4, NULL);
 
     return ESP_OK;
 }
