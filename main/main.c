@@ -10,9 +10,21 @@
 #include "esp_err.h"
 #include "nvs_flash.h"
 
-//NEO-6
-#include "driver/uart.h"
 
+// unicast wifi
+#include <stdlib.h>
+#include <time.h>
+#include <assert.h>
+#include "freertos/semphr.h"
+#include "freertos/timers.h"
+#include "esp_random.h"
+#include "esp_event.h"
+#include "esp_netif.h"
+#include "esp_wifi.h"
+#include "esp_mac.h"
+#include "esp_now.h"
+#include "esp_crc.h"
+#include "unicast.h"
 
 
 // Camera
@@ -208,7 +220,6 @@ static esp_err_t capture_and_save_image() {
 
     ESP_LOGI(TAG, "Saving file to: %s", file_path);
 
-    //ESP_LOGI(TAG, "before fopen  ***");
 
     FILE *file = fopen(file_path, "w"); // Open file for writing
     if (file == NULL) {
@@ -244,11 +255,27 @@ static esp_err_t capture_and_save_image() {
 
 void app_main(void)
 {
-    printf("                    ▒█▒█▓▒██░ ▒                 \n");
-    printf("                     ░▓▓▓ ▒█▓              \n");
-    printf("                      ░██▒                 \n");
-    printf("                        █               \n");
-    printf("      ✴       ✴ <<<MADMANINDUSTRIES>>> ✴     ✴           \n");
+    printf("   ✴ ▓ ✴ <<<MADMANINDUSTRIES>>> ✴ ▓ ✴          \n");
+    printf(
+    "              \\__/_‾__‾‾_‾\\__/   // M\n"
+    "              \\__/_‾______\\__/   // A\n"
+    "              \\__/_‾__‾___\\__/   // D\n"
+    "              \\__/_‾__‾‾_‾\\__/   // M\n"
+    "              \\__/_‾______\\__/   // A\n"
+    "              \\__/_‾__‾‾‾_\\__/   // N\n"
+    "              \\__/_‾__‾‾__\\__/   // I\n"
+    "              \\__/_‾__‾‾‾_\\__/   // N\n"
+    "              \\__/_‾__‾___\\__/   // D\n"
+    "              \\__/‾_‾‾_‾‾_\\__/   // U\n"
+    "              \\__/‾_‾‾__‾_\\__/   // S\n"
+    "              \\__/‾_‾‾_‾__\\__/   // T\n"
+    "              \\__/‾_‾‾__‾_\\__/   // R\n"
+    "              \\__/_‾__‾‾__\\__/   // I\n"
+    "              \\__/_‾__‾___\\__/   // E\n"
+    "              \\__/‾_‾‾__‾_\\__/   // S\n"
+    );
+
+    
     // Print reset reason
     esp_reset_reason_t reason = esp_reset_reason();
     printf("Reset reason: %d\n", reason);   
@@ -265,6 +292,10 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+
+    // Initialize WiFi and ESPNOW
+    example_wifi_init();
+    example_espnow_init();
 
 
 
@@ -322,6 +353,7 @@ void app_main(void)
     // if (ret != ESP_OK) {
     //     ESP_LOGE(TAG, "Failed to deinitialize SDMMC host");
     // }
+
 
     
     ESP_LOGI(TAG, "success!!!");
