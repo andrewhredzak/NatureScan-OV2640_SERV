@@ -10,6 +10,12 @@
 #include "esp_err.h"
 #include "nvs_flash.h"
 
+// Compile-time flag to enable/disable image capture logic.
+// Set via build system: add to CFLAGS or use -DENABLE_IMAGE_CAPTURE=0
+#ifndef ENABLE_IMAGE_CAPTURE
+#define ENABLE_IMAGE_CAPTURE 0
+#endif
+
 
 // unicast wifi
 #include <stdlib.h>
@@ -320,11 +326,11 @@ void app_main(void)
         }
 
         char log_path[96];
-        snprintf(log_path, sizeof log_path, "%s/receiveddata_%s.txt", mount_point, hhmm);
+        snprintf(log_path, sizeof log_path, "%s/ADAM_Rx_data_%s.txt", mount_point, hhmm);
 
         FILE *f = fopen(log_path, "w");
         if (f) {
-            fprintf(f, "Boot log started\n");
+            fprintf(f, "ADAM RX data log\n");
             fclose(f);
             ESP_LOGI(TAG, "Created receive log: %s", log_path);
         } else {
@@ -347,35 +353,33 @@ void app_main(void)
     //vTaskDelay(pdMS_TO_TICKS(3000));
 
 
-    // Initialize Camera
+    // Initialize & run camera capture loop only if enabled
+#if ENABLE_IMAGE_CAPTURE
     ret = init_camera();
     if (ret != ESP_OK) {
-         ESP_LOGE(TAG, "Failed to initialize Camera. Halting.");
-        // Optional: Cleanup SD card before halting
-        // esp_vfs_fat_sdcard_unmount(mount_point, card);
-        // sdmmc_host_deinit();
+        ESP_LOGE(TAG, "Failed to initialize Camera. Halting.");
         return; // Halt if camera fails
     }
 
-    // Wait a bit for camera sensor to stabilize (optional)
-    vTaskDelay(pdMS_TO_TICKS(3000));
+    vTaskDelay(pdMS_TO_TICKS(3000)); // Sensor stabilization delay
 
-
-
-    
-
-    // ---  Loop to capture images every N seconds ---
-
-    while(1) {
-        ESP_LOGI(TAG,"--- Taking photo in loop ---");
+    while (1) {
+        ESP_LOGI(TAG, "--- Taking photo in loop ---");
         ret = capture_and_save_image();
         if (ret != ESP_OK) {
-             ESP_LOGE(TAG, "Failed to capture and save image in loop.");
-             // Decide how to handle errors in loop (retry, stop, etc.)
+            ESP_LOGE(TAG, "Failed to capture and save image in loop.");
+            // Could add retry/backoff or error counter here
         }
-        ESP_LOGI(TAG,"Waiting 1 seconds...");
-        vTaskDelay(pdMS_TO_TICKS(1000)); // Wait 1 seconds
+        ESP_LOGI(TAG, "Waiting 1 seconds...");
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
+#else
+    ESP_LOGI(TAG, "Image capture disabled (ENABLE_IMAGE_CAPTURE=0); system running without camera loop.");
+    while (1) {
+        // Idle loop: still keep WiFi/ESPNOW / logging active
+        vTaskDelay(pdMS_TO_TICKS(10000));
+    }
+#endif
 
 
     // --- Cleanup (if not looping forever) ---

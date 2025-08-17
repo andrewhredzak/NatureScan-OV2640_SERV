@@ -195,7 +195,7 @@ void example_espnow_data_prepare(example_espnow_send_param_t *send_param)
     buf->crc = esp_crc16_le(UINT16_MAX, (uint8_t const *)buf, send_param->len);
 }
 
-static void example_espnow_task(void *pvParameter)
+static void espnow_link_task(void *pvParameter)
 {
     example_espnow_event_t evt;
     uint8_t recv_state = 0;
@@ -465,13 +465,13 @@ esp_err_t example_espnow_init(void)
     }
     memcpy(send_param->dest_mac, s_example_broadcast_mac, ESP_NOW_ETH_ALEN);
     // Set custom payload
-    static const char my_message[] = "MMI OTA message";
+    static const char my_message[] = "ADAM message";
     send_param->payload = (uint8_t *)my_message;
     send_param->payload_len = sizeof(my_message) - 1; // exclude null terminator
     example_espnow_data_prepare(send_param);
 
     // Increase stack size to accommodate logging and temporary buffers
-    xTaskCreate(example_espnow_task, "example_espnow_task", 4096, send_param, 4, NULL);
+    xTaskCreate(espnow_link_task, "espnow_link_task", 4096, send_param, 4, NULL);
 
     return ESP_OK;
 }

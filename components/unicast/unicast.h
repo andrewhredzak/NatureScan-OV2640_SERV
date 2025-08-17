@@ -96,7 +96,7 @@ static void example_espnow_send_cb(const uint8_t *mac_addr, esp_now_send_status_
 static void example_espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len);
 int example_espnow_data_parse(uint8_t *data, uint16_t data_len, uint8_t *state, uint16_t *seq, uint32_t *magic);
 void example_espnow_data_prepare(example_espnow_send_param_t *send_param);
-static void example_espnow_task(void *pvParameter);
+static void espnow_link_task(void *pvParameter);
 esp_err_t example_espnow_init(void);
 void example_espnow_set_log_file(const char *filepath);
 
