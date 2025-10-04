@@ -99,6 +99,7 @@ void example_espnow_data_prepare(example_espnow_send_param_t *send_param);
 static void espnow_link_task(void *pvParameter);
 esp_err_t example_espnow_init(void);
 void example_espnow_set_log_file(const char *filepath);
+void print_espnow_peer_list(void);
 
 
 

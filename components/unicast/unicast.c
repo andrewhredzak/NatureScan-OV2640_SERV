@@ -34,6 +34,42 @@ static char s_log_file_path[128] = {0};  // added
 
 
 
+
+// temp helper to print current peer list
+void print_espnow_peer_list(void) {
+    printf("in print_espnow_peer_list()\n");
+    esp_now_peer_num_t num;
+    esp_now_get_peer_num(&num);
+    ESP_LOGI(TAG, "Number of peers: %d", num.total_num);
+    if (num.total_num == 0) {
+        ESP_LOGI(TAG, "peer list empty");
+        return;
+    }
+
+    esp_now_peer_info_t *peers = malloc(num.total_num * sizeof(esp_now_peer_info_t));
+    if (!peers) return;
+
+    int count = 0;
+    esp_now_peer_info_t peer;
+    esp_err_t err = esp_now_fetch_peer(true, &peer);  // Get the first peer
+    while (err == ESP_OK && count < num.total_num) {
+        memcpy(&peers[count], &peer, sizeof(esp_now_peer_info_t));
+        count++;
+        err = esp_now_fetch_peer(false, &peer);  // Get the next peer
+    }
+
+    if (count > 0) {  // Only print if we fetched any peers
+        ESP_LOGI(TAG, "total peers: %d\n:",count);
+        for (int i = 0; i < count; i++) {
+            printf("MAC: " MACSTR " ch:%d enc:%d\n",
+                   MAC2STR(peers[i].peer_addr), peers[i].channel, peers[i].encrypt);
+        }
+    }
+
+    free(peers);
+}
+
+
 // added: setter to receive log path from main
 void example_espnow_set_log_file(const char *filepath) {
     if (!filepath) return;
@@ -79,6 +115,7 @@ void example_wifi_init(void)
     ESP_ERROR_CHECK( esp_wifi_set_mode(ESPNOW_WIFI_MODE) );
     ESP_ERROR_CHECK( esp_wifi_start());
     ESP_ERROR_CHECK( esp_wifi_set_channel(CONFIG_ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE));
+    print_espnow_peer_list(); //peer list print 0
 
 #if CONFIG_ESPNOW_ENABLE_LONG_RANGE
     ESP_ERROR_CHECK( esp_wifi_set_protocol(ESPNOW_WIFI_IF, WIFI_PROTOCOL_11B|WIFI_PROTOCOL_11G|WIFI_PROTOCOL_11N|WIFI_PROTOCOL_LR) );
@@ -206,7 +243,9 @@ static void espnow_link_task(void *pvParameter)
 
     vTaskDelay(5000 / portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "Start broadcast data");
-    /*ESP_LOGI("ADAM-SERVER", "WiFi mode: %s",  ESPNOW_WIFI_MODE);*/
+    ESP_LOGI(TAG, "WiFi mode: %c",  ESPNOW_WIFI_MODE);
+
+    print_espnow_peer_list(); //peer list print 4
 
    
 
@@ -254,6 +293,8 @@ static void espnow_link_task(void *pvParameter)
                 else if (mode == WIFI_MODE_AP) mode_str = "AP";
                 else if (mode == WIFI_MODE_APSTA) mode_str = "AP+STA";
 
+                print_espnow_peer_list(); //peer list print 1
+
                
                 // Print the payload before transmission
                 if (send_param->payload && send_param->payload_len > 0) {
@@ -295,6 +336,8 @@ static void espnow_link_task(void *pvParameter)
                 if (printable) {
                     ESP_LOGI(TAG, "Received packet (string): %.*s", recv_cb->data_len, (char *)recv_cb->data);
                 }
+
+                print_espnow_peer_list(); //peer list print 2
 
                 
                 // added: append timestamped line to SD log
@@ -471,6 +514,9 @@ esp_err_t example_espnow_init(void)
 
     // Increase stack size to accommodate logging and temporary buffers
     xTaskCreate(espnow_link_task, "espnow_link_task", 4096, send_param, 4, NULL);
+
+    print_espnow_peer_list(); //peer list print 3
+
 
     return ESP_OK;
 }
