@@ -261,8 +261,7 @@ static void espnow_link_task(void *pvParameter)
                 }
                 
 
-                ESP_LOGI("ADAM-SERVER", "WiFi mode: %s, data link to "MACSTR"", mode_str, MAC2STR(send_cb->mac_addr));
-                
+                ESP_LOGI("ADAM-SERVER", "sending to : "MACSTR"", MAC2STR(send_cb->mac_addr));
 
                 memcpy(send_param->dest_mac, send_cb->mac_addr, ESP_NOW_ETH_ALEN);
                 example_espnow_data_prepare(send_param);
