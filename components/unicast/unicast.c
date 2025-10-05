@@ -27,6 +27,17 @@
 
 const char *TAG = "unicast receive server";
 uint8_t s_example_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }; 
+//uint8_t s_JOSIE_peer_mac[ESP_NOW_ETH_ALEN] = { 0x94, 0x54, 0xC5, 0xB1, 0x05, 0x34 }; // 94:54:c5:b1:05:34
+// Hardcoded PMK (16 bytes, same on both devices)
+static const uint8_t NS_pmk[16] = {
+    0x01, 0xD2, 0xE3, 0xA4, 0xD5, 0x06, 0x07, 0x99,
+    0x09, 0x0A, 0x0B, 0xAC, 0x0D, 0x0E, 0x0F, 0x10
+};
+// Hardcoded LMK for ADAM peer (16 bytes, same on both devices for this pair)
+static const uint8_t NS_lmk[16] = {
+    0xAA, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+    0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0xAA
+};
 uint16_t s_example_espnow_seq[EXAMPLE_ESPNOW_DATA_MAX] = { 0, 0 };
 QueueHandle_t s_example_espnow_queue;
 
@@ -386,8 +397,8 @@ static void espnow_link_task(void *pvParameter)
                         memset(peer, 0, sizeof(esp_now_peer_info_t));
                         peer->channel = CONFIG_ESPNOW_CHANNEL;
                         peer->ifidx = ESPNOW_WIFI_IF;
-                        peer->encrypt = true;
-                        memcpy(peer->lmk, CONFIG_ESPNOW_LMK, ESP_NOW_KEY_LEN);
+                        peer->encrypt = false;
+                        memcpy(peer->lmk, NS_lmk, ESP_NOW_KEY_LEN);
                         memcpy(peer->peer_addr, recv_cb->mac_addr, ESP_NOW_ETH_ALEN);
                         ESP_ERROR_CHECK( esp_now_add_peer(peer) );
                         free(peer);
@@ -463,7 +474,7 @@ esp_err_t example_espnow_init(void)
     ESP_ERROR_CHECK( esp_wifi_connectionless_module_set_wake_interval(CONFIG_ESPNOW_WAKE_INTERVAL) );
 #endif
     /* Set primary master key. */
-    ESP_ERROR_CHECK( esp_now_set_pmk((uint8_t *)CONFIG_ESPNOW_PMK) );
+    ESP_ERROR_CHECK( esp_now_set_pmk((uint8_t *)NS_pmk) );
 
     /* Add broadcast peer information to peer list. */
     esp_now_peer_info_t *peer = malloc(sizeof(esp_now_peer_info_t));
